@@ -401,7 +401,7 @@ serial_ack = {}
 last_query = int(0).to_bytes(2, "big")
 last_topic_list = {}
 
-mqtt = paho_mqtt.Client()
+mqtt = paho_mqtt.Client(paho_mqtt.CallbackAPIVersion.VERSION2)
 mqtt_connected = False
 
 logger = logging.getLogger(__name__)
@@ -820,7 +820,7 @@ def mqtt_on_message(mqtt, userdata, msg):
 
         
 # KTDO: 수정 완료
-def mqtt_on_connect(mqtt, userdata, flags, rc):
+def mqtt_on_connect(mqtt, userdata, flags, rc, properties):
     if rc == 0:
         logger.info("MQTT connect successful!")
         global mqtt_connected

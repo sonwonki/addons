@@ -262,7 +262,7 @@ def ezville_loop(config):
   
 
     # MQTT 통신 연결 Callback
-    def on_connect(client, userdata, flags, rc):
+    def on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             log('[INFO] MQTT Broker 연결 성공')
             # Socket인 경우 MQTT 장치의 명령 관련과 MQTT Status (Birth/Last Will Testament) Topic만 구독
@@ -377,18 +377,18 @@ def ezville_loop(config):
                 else:
                     STATE_PACKET = False
                     ACK_PACKET = False
-                    
+                    device_id = packet[2:4]
                     # STATE 패킷인지 확인
-                    if packet[2:4] in STATE_HEADER and packet[6:8] in STATE_HEADER[packet[2:4]][1]:
+                    if device_id in STATE_HEADER and packet[6:8] in STATE_HEADER[device_id][1]:
                         STATE_PACKET = True
                     # ACK 패킷인지 확인
-                    elif packet[2:4] in ACK_HEADER and packet[6:8] in ACK_HEADER[packet[2:4]][1]:
+                    elif device_id in ACK_HEADER and packet[6:8] in ACK_HEADER[device_id][1]:
                         ACK_PACKET = True
                     
                     if STATE_PACKET or ACK_PACKET:
                         # MSG_CACHE에 없는 새로운 패킷이거나 FORCE_UPDATE 실행된 경우만 실행
                         if MSG_CACHE.get(packet[0:10]) != packet[10:] or FORCE_UPDATE:
-                            name = STATE_HEADER[packet[2:4]][0]                            
+                            name = STATE_HEADER.get(device_id, ["UNK"])[0]                            
                             if name == 'light':
                                 # ROOM ID
                                 rid = int(packet[5], 16)
@@ -976,7 +976,7 @@ def ezville_loop(config):
 
         
     # MQTT 통신
-    mqtt_client = mqtt.Client('mqtt-ezville')
+    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, 'mqtt-ezville')
     mqtt_client.username_pw_set(config['mqtt_id'], config['mqtt_password'])
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
