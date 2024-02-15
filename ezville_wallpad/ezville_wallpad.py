@@ -131,79 +131,32 @@ RS485_DEVICE = {
             "ack": 0xC4,
         },
     },
-    # KTDO: 기존 코드
-    #        "query":    { "header": 0xAC79, "length":  5, "id": 2, },
-    #        "state":    { "header": 0xB079, "length":  5, "id": 2, "parse": {("power", 3, "bitmap")} },
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xAC7A, "length":  5, "id": 2, "pos": 3, },
-    #    },
-    #
-    #    # 환기장치 (전열교환기)
-    #    "fan": {
-    #        "query":    { "header": 0xC24E, "length":  6, },
-    #        "state":    { "header": 0xB04E, "length":  6, "parse": {("power", 4, "fan_toggle"), ("speed", 2, "value")} },
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xC24F, "length":  6, "pos": 2, },
-    #        "speed":    { "header": 0xC24F, "length":  6, "pos": 2, },
-    #    },
-    #
-    #    # 각방 난방 제어
-    #    "thermostat": {
-    #        "query":    { "header": 0xAE7C, "length":  8, "id": 2, },
-    #        "state":    { "header": 0xB07C, "length":  8, "id": 2, "parse": {("power", 3, "heat_toggle"), ("target", 4, "value"), ("current", 5, "value")} },
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xAE7D, "length":  8, "id": 2, "pos": 3, },
-    #        "target":   { "header": 0xAE7F, "length":  8, "id": 2, "pos": 3, },
-    #    },
-    #
-    #    # 각방 난방 제어
-    #    "thermostat": {
-    #        "query":    { "header": 0xAE7C, "length":  8, "id": 2, },
-    #        "state":    { "header": 0xB07C, "length":  8, "id": 2, "parse": {("power", 3, "heat_toggle"), ("target", 4, "value"), ("current", 5, "value")} },
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xAE7D, "length":  8, "id": 2, "pos": 3, },
-    #        "target":   { "header": 0xAE7F, "length":  8, "id": 2, "pos": 3, },
-    #    },
-    #
-    #    # 대기전력차단 스위치 (전력사용량 확인)
-    #    "plug": {
-    #        "query":    { "header": 0xC64A, "length": 10, "id": 2, },
-    #        "state":    { "header": 0xB04A, "length": 10, "id": 2, "parse": {("power", 3, "toggle"), ("idlecut", 3, "toggle2"), ("current", 5, "2Byte")} },
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xC66E, "length": 10, "id": 2, "pos": 3, },
-    #        "idlecut":  { "header": 0xC64B, "length": 10, "id": 2, "pos": 3, },
-    #    },
-    #
-    #    # 일괄조명: 현관 스위치 살아있으면...
-    #    "cutoff": {
-    #        "query":    { "header": 0xAD52, "length":  4, },
-    #        "state":    { "header": 0xB052, "length":  4, "parse": {("power", 2, "toggle")} }, # 1: 정상, 0: 일괄소등
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xAD53, "length":  4, "pos": 2, },
-    #    },
-    #
-    #    # 부엌 가스 밸브
-    #    "gas_valve": {
-    #        "query":    { "header": 0xAB41, "length":  4, },
-    #        #"state":    { "header": 0xB041, "length":  4, "parse": {("power", 2, "toggle")} }, # 0: 정상, 1: 차단; 0xB041은 공용 ack이므로 처리하기 복잡함
-    #        "state":    { "header": 0xAD56, "length":  4, "parse": {("power", 2, "gas_toggle")} }, # 0: 정상, 1: 차단; 월패드가 현관 스위치에 보내주는 정보로 확인 가능
-    #        "last":     { },
-    #
-    #        "power":    { "header": 0xAB78, "length":  4, }, # 0 으로 잠그기만 가능
-    #    },
-    #
-    #    # 실시간에너지 0:전기, 1:가스, 2:수도
-    #    "energy": {
-    #        "query":    { "header": 0xAA6F, "length":  4, "id": 2, },
-    #        "state":    { "header": 0xB06F, "length":  7, "id": 2, "parse": {("current", 3, "6decimal")} },
-    #        "last":     { },
-    #    },
+    "gasvalve": {
+        "state": {
+            "id": 0x12,
+            "cmd": 0x81
+        },
+        "power": {
+            "id": 0x12,
+            "cmd": 0x41,
+            "ack": 0xC1 # 잠그기만 가능
+        },
+    },
+    "batch": {
+        "state": {
+            "id": 0x33,
+            "cmd": 0x81
+        },
+        "press": {
+            "id": 0x33,
+            "cmd": 0x41,
+            "ack": 0xC1
+        },
+    },
+    "plug": {
+        "state": {"id": 0x50, "cmd": 0x81},
+        "power": {"id": 0x50, "cmd": 0x43, "ack": 0xC3},
+    },
 }
 
 DISCOVERY_DEVICE = {
@@ -327,51 +280,59 @@ DISCOVERY_PAYLOAD = {
             "max_temp": 40,
         }
     ],
-    #    "plug": [ {
-    #        "_intg": "switch",
-    #        "~": "{prefix}/plug/{idn}/power",
-    #        "name": "{prefix}_plug_{idn}",
-    #        "stat_t": "~/state",
-    #        "cmd_t": "~/command",
-    #        "icon": "mdi:power-plug",
-    #    },
-    #    {
-    #        "_intg": "switch",
-    #        "~": "{prefix}/plug/{idn}/idlecut",
-    #        "name": "{prefix}_plug_{idn}_standby_cutoff",
-    #        "stat_t": "~/state",
-    #        "cmd_t": "~/command",
-    #        "icon": "mdi:leaf",
-    #    },
-    #    {
-    #        "_intg": "sensor",
-    #        "~": "{prefix}/plug/{idn}",
-    #        "name": "{prefix}_plug_{idn}_power_usage",
-    #        "stat_t": "~/current/state",
-    #        "unit_of_meas": "W",
-    #    } ],
-    #    "cutoff": [ {
-    #        "_intg": "switch",
-    #        "~": "{prefix}/cutoff/{idn}/power",
-    #        "name": "{prefix}_light_cutoff_{idn}",
-    #        "stat_t": "~/state",
-    #        "cmd_t": "~/command",
-    #    } ],
-    #    "gas_valve": [ {
-    #        "_intg": "sensor",
-    #        "~": "{prefix}/gas_valve/{idn}",
-    #        "name": "{prefix}_gas_valve_{idn}",
-    #        "stat_t": "~/power/state",
-    #        "icon": "mdi:valve",
-    #    } ],
-    #    "energy": [ {
-    #        "_intg": "sensor",
-    #        "~": "{prefix}/energy/{idn}",
-    #        "name": "_",
-    #        "stat_t": "~/current/state",
-    #        "unit_of_meas": "_",
-    #        "val_tpl": "_",
-    #    } ],
+    "plug": [
+        {
+            "_intg": "switch",
+            "~": "{prefix}/plug/{idn}/power",
+            "name": "{prefix}_plug_{idn}",
+            "stat_t": "~/state",
+            "cmd_t": "~/command",
+            "icon": "mdi:power-plug",
+        },
+        {
+            "_intg": "switch",
+            "~": "{prefix}/plug/{idn}/idlecut",
+            "name": "{prefix}_plug_{idn}_standby_cutoff",
+            "stat_t": "~/state",
+            "cmd_t": "~/command",
+            "icon": "mdi:leaf",
+        },
+        {
+            "_intg": "sensor",
+            "~": "{prefix}/plug/{idn}",
+            "name": "{prefix}_plug_{idn}_power_usage",
+            "stat_t": "~/current/state",
+            "unit_of_meas": "W",
+        },
+    ],
+    "cutoff": [
+        {
+            "_intg": "switch",
+            "~": "{prefix}/cutoff/{idn}/power",
+            "name": "{prefix}_light_cutoff_{idn}",
+            "stat_t": "~/state",
+            "cmd_t": "~/command",
+        }
+    ],
+    "gasvalve": [
+        {
+            "_intg": "sensor",
+            "~": "{prefix}/gasvalve/{idn}",
+            "name": "{prefix}_gasvalve_{idn}",
+            "stat_t": "~/power/state",
+            "icon": "mdi:valve",
+        }
+    ],
+    "energy": [
+        {
+            "_intg": "sensor",
+            "~": "{prefix}/energy/{idn}",
+            "name": "_",
+            "stat_t": "~/current/state",
+            "unit_of_meas": "_",
+            "val_tpl": "_",
+        }
+    ],
 }
 
 STATE_HEADER = {
@@ -505,7 +466,7 @@ class EzVilleSocket:
     def recv(self, count=1):
         # socket은 버퍼와 in_waiting 직접 관리
         if len(self._recv_buf) < count:
-            new_data = self._recv_raw(256)
+            new_data = self._recv_raw(128)
             self._recv_buf.extend(new_data)
         if len(self._recv_buf) < count:
             return None
@@ -527,7 +488,7 @@ class EzVilleSocket:
 
     def check_in_waiting(self):
         if len(self._recv_buf) == 0:
-            new_data = self._recv_raw(256)
+            new_data = self._recv_raw(128)
             self._recv_buf.extend(new_data)
         return len(self._recv_buf)
 
@@ -789,19 +750,14 @@ def mqtt_device(topics, payload):
         return
 
     # ON, OFF인 경우만 1, 0으로 변환, 복잡한 경우 (fan 등) 는 값으로 받자
-    if payload == "ON":
-        payload = "1"
-    elif payload == "OFF":
-        payload = "0"
-    elif payload == "heat":
-        payload = "1"
-    elif payload == "off":
-        payload = "0"
 
     # 오류 체크 끝났으면 serial 메시지 생성
     cmd = RS485_DEVICE[device][cmd]
-
     if device == "light":
+        if payload == "ON":
+            payload = 0xF1 if idn.startswith("1_1") else 0x01 # 거실등만 0xF1
+        elif payload == "OFF":
+            payload = 0x00
         length = 10
         packet = bytearray(length)
         packet[0] = 0xF7
@@ -810,11 +766,14 @@ def mqtt_device(topics, payload):
         packet[3] = cmd["cmd"]
         packet[4] = 0x03
         packet[5] = int(idn.split("_")[2])
-        packet[6] = int(float(payload))
+        packet[6] = payload
         packet[7] = 0x00
         packet[8], packet[9] = serial_generate_checksum(packet)
-
     elif device == "thermostat":
+        if payload == "heat":
+            payload = 0x01
+        elif payload == "off":
+            payload = 0x00
         length = 8
         packet = bytearray(length)
         packet[0] = 0xF7
@@ -1132,9 +1091,8 @@ def serial_generate_checksum(packet):
 
 
 # KTDO: 수정 완료
-def serial_new_device(device, packet):
+def serial_new_device(device, packet, idn=None):
     prefix = Options["mqtt"]["prefix"]
-
     # 조명은 두 id를 조합해서 개수와 번호를 정해야 함
     if device == "light":
         # KTDO: EzVille에 맞게 수정
@@ -1168,22 +1126,21 @@ def serial_new_device(device, packet):
             payload["name"] = payload["name"].format(prefix=prefix, grp=grp_id, id=id)
 
             mqtt_discovery(payload)
+    elif device in DISCOVERY_PAYLOAD:
+       for payloads in DISCOVERY_PAYLOAD[device]:
+           payload = payloads.copy()
+           
+           payload["~"] = payload["~"].format(prefix=prefix, idn=idn)
+           payload["name"] = payload["name"].format(prefix=prefix, idn=idn)
 
+           # 실시간 에너지 사용량에는 적절한 이름과 단위를 붙여준다 (단위가 없으면 그래프로 출력이 안됨)
+           # KTDO: Ezville에 에너지 확인 쿼리 없음
+           if device == "energy":
+               payload["name"] = "{}_{}_consumption".format(prefix, ("power", "gas", "water")[idn])
+               payload["unit_of_meas"] = ("W", "m³/h", "m³/h")[idn]
+               payload["val_tpl"] = ("{{ value }}", "{{ value | float / 100 }}", "{{ value | float / 100 }}")[idn]
 
-#    elif device in DISCOVERY_PAYLOAD:
-#        for payloads in DISCOVERY_PAYLOAD[device]:
-#            payload = payloads.copy()
-#            payload["~"] = payload["~"].format(prefix=prefix, idn=idn)
-#            payload["name"] = payload["name"].format(prefix=prefix, idn=idn)
-#
-#            # 실시간 에너지 사용량에는 적절한 이름과 단위를 붙여준다 (단위가 없으면 그래프로 출력이 안됨)
-#            # KTDO: Ezville에 에너지 확인 쿼리 없음
-#            if device == "energy":
-#                payload["name"] = "{}_{}_consumption".format(prefix, ("power", "gas", "water")[idn])
-#                payload["unit_of_meas"] = ("W", "m³/h", "m³/h")[idn]
-#                payload["val_tpl"] = ("{{ value }}", "{{ value | float / 100 }}", "{{ value | float / 100 }}")[idn]
-#
-#            mqtt_discovery(payload)
+           mqtt_discovery(payload)
 
 
 # KTDO: 수정 완료
@@ -1209,8 +1166,7 @@ def serial_receive_state(device, packet):
         # if last_query[1] == packet[1] or device == "gas_valve":
         #    serial_new_device(device, idn, packet)
         #    last[idn] = True
-
-        serial_new_device(device, packet)
+        serial_new_device(device, packet, idn)
         last[idn] = True
 
         # 장치 등록 먼저 하고, 상태 등록은 그 다음 턴에 한다. (난방 상태 등록 무시되는 현상 방지)
@@ -1227,12 +1183,9 @@ def serial_receive_state(device, packet):
         rm_id = int(packet[2] & 0x0F)
         light_count = int(packet[4]) - 1
 
-        for id in range(1, light_count + 1):
-            topic = "{}/{}/{}_{}_{}/power/state".format(
-                prefix, device, grp_id, rm_id, id
-            )
-
-            if packet[5 + id] & 1:
+        for light_id in range(1, light_count + 1):
+            topic = f"{prefix}/{device}/{grp_id}_{rm_id}_{light_id}/power/state"
+            if packet[5 + light_id] & 1:
                 value = "ON"
             else:
                 value = "OFF"
@@ -1248,11 +1201,11 @@ def serial_receive_state(device, packet):
         grp_id = int(packet[2] >> 4)
         room_count = int((int(packet[4]) - 5) / 2)
 
-        for id in range(1, room_count + 1):
-            topic1 = "{}/{}/{}_{}/power/state".format(prefix, device, grp_id, id)
-            topic2 = "{}/{}/{}_{}/away/state".format(prefix, device, grp_id, id)
-            topic3 = "{}/{}/{}_{}/target/state".format(prefix, device, grp_id, id)
-            topic4 = "{}/{}/{}_{}/current/state".format(prefix, device, grp_id, id)
+        for thermostat_id in range(1, room_count + 1):
+            topic1 = f"{prefix}/{device}/{grp_id}_{thermostat_id}/power/state"
+            topic2 = f"{prefix}/{device}/{grp_id}_{thermostat_id}/away/state"
+            topic3 = f"{prefix}/{device}/{grp_id}_{thermostat_id}/target/state"
+            topic4 = f"{prefix}/{device}/{grp_id}_{thermostat_id}/current/state"
 
             if ((packet[6] & 0x1F) >> (room_count - id)) & 1:
                 value1 = "ON"
@@ -1386,9 +1339,11 @@ def serial_send_command():
         serial_ack[ack] = cmd
 
 
+
 # KTDO: 수정 완료
 def serial_loop():
     logger.info("start loop ...")
+    wrong_header_1 = set()
     loop_count = 0
     scan_count = 0
     send_aggressive = False
@@ -1402,22 +1357,10 @@ def serial_loop():
         header_0, header_1, header_2, header_3 = serial_get_header()
         # KTDO: 패킷단위로 분석할 것이라 합치지 않음.
         # header = (header_0 << 8) | header_1
-
-        # KTDO: Virtual Device는 Skip
-        #        # 요청했던 동작의 ack 왔는지 확인
-        #        if header in virtual_ack:
-        #            virtual_clear(header)
-        #
-        #        # 인터폰 availability 관련 헤더인지 확인
-        #        if header in virtual_avail:
-        #            virtual_enable(header_0, header_1)
-        #
-        #        # 가상 장치로써 응답해야 할 header인지 확인
-        #        if header_0 in header_0_virtual:
-        #            virtual_query(header_0, header_1)
-
-        # KTDO: int('20', base=16)
         # device로부터의 state 응답이면 확인해서 필요시 HA로 전송해야 함
+        # if header_1 not in STATE_HEADER:
+        #     wrong_header_1.add(header_1)
+        #     print(wrong_header_1)
         if header_1 in STATE_HEADER and header_3 in STATE_HEADER[header_1]:
             # packet = bytes([header_0, header_1])
 
@@ -1458,15 +1401,6 @@ def serial_loop():
             if header in serial_ack:
                 serial_ack_command(header)
 
-        # KTDO: 필요 없음.
-        # 마지막으로 받은 query를 저장해둔다 (조명 discovery에 필요)
-        # elif header in QUERY_HEADER:
-        #    # 나머지 더 뽑아서 저장
-        #    global last_query
-        #    packet = conn.recv(QUERY_HEADER[header][1])
-        #    packet = header.to_bytes(2, "big") + packet
-        #    last_query = packet
-
         # 명령을 보낼 타이밍인지 확인: 0xXX5A 는 장치가 있는지 찾는 동작이므로,
         # 아직도 이러고 있다는건 아무도 응답을 안할걸로 예상, 그 타이밍에 끼어든다.
         # KTDO: EzVille은 표준에 따라 Ack 이후 다음 Request 까지의 시간 활용하여 command 전송
@@ -1498,7 +1432,7 @@ def serial_loop():
 
                 # 스캔이 없거나 적으면, 명령을 내릴 타이밍을 못잡는걸로 판단, 아무때나 닥치는대로 보내봐야한다.
                 if Options["serial_mode"] == "serial" and scan_count < 30:
-                    logger.warning("initiate aggressive send mode!", scan_count)
+                    logger.warning(f"initiate aggressive send mode! {scan_count}")
                     send_aggressive = True
 
             # HA 재시작한 경우
@@ -1542,7 +1476,7 @@ def dump_loop():
         logs = []
         while time.time() - start_time < dump_time:
             try:
-                data = conn.recv(256)
+                data = conn.recv(128)
             except:
                 continue
 
@@ -1565,9 +1499,6 @@ if __name__ == "__main__":
     init_logger()
     init_option(sys.argv)
     init_logger_file()
-
-    # KTDO: Virtual Device는 Skip
-    #    init_virtual_device()
 
     if Options["serial_mode"] == "socket":
         logger.info("initialize socket...")
