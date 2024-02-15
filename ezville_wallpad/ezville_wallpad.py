@@ -476,7 +476,7 @@ def mqtt_device(topics, payload):
         packet[2] = int(idn.split("_")[0]) << 4 | int(idn.split("_")[1])
         packet[3] = cmd["cmd"]
         packet[4] = 0x01
-        packet[5] = 0x01 if payload == "ON" else 0x00
+        packet[5] = 0x11 if payload == "ON" else 0x10
         packet[6], packet[7] = serial_generate_checksum(packet)
     if packet:
         packet = bytes(packet)
@@ -616,10 +616,6 @@ def serial_new_device(device, packet, idn=None):
         grp_id = int(packet[2] >> 4)
         rm_id = int(packet[2] & 0x0F)
         light_count = int(packet[4]) - 1
-        for p in packet:
-            print(format(p, "02x"), end=" ")
-        print(packet[3], packet[4], packet[5])
-        print(grp_id, rm_id, light_count)
         for light_id in range(1, light_count + 1):
             payload = DISCOVERY_PAYLOAD[device][0].copy()
             payload["~"] = payload["~"].format(
@@ -713,14 +709,13 @@ def serial_receive_state(device, packet):
                 value = "OFF"
 
             if last_topic_list.get(topic) != value:
-                logger.info("publish to HA:   %s = %s (%s)", topic, value, packet.hex())
+                logger.debug("publish to HA:   %s = %s (%s)", topic, value, packet.hex())
                 mqtt.publish(topic, value)
                 last_topic_list[topic] = value
 
     elif device == "thermostat":
         grp_id = int(packet[2] >> 4)
-        room_count = int((int(packet[4]) - 5) / 2)
-
+        room_count = 1  # 고정
         for thermostat_id in range(1, room_count + 1):
             if ((packet[6] & 0x1F) >> (room_count - thermostat_id)) & 1:
                 value1 = "ON"
@@ -742,7 +737,7 @@ def serial_receive_state(device, packet):
             ):
                 topic = f"{prefix}/{device}/{grp_id}_{thermostat_id}/{sub_topic}/state"
                 if last_topic_list.get(topic) != value:
-                    logger.info(
+                    logger.debug(
                         "publish to HA:   %s = %s (%s)", topic, value, packet.hex()
                     )
                     mqtt.publish(topic, value)
@@ -760,7 +755,7 @@ def serial_receive_state(device, packet):
             ):
                 topic = f"{prefix}/{device}/{grp_id}_{plug_id}/{sub_topic}/state"
                 if last_topic_list.get(topic) != value:
-                    logger.info(
+                    logger.debug(
                         "publish to HA:   %s = %s (%s)", topic, value, packet.hex()
                     )
                     mqtt.publish(topic, value)
@@ -812,7 +807,6 @@ def serial_send_command(conn):
     # 한번에 여러개 보내면 응답이랑 꼬여서 망함
     cmd = next(iter(serial_queue))
     conn.send(cmd)
-
     # ack = bytearray(cmd[0:3])
     # KTDO: Ezville은 4 Byte까지 확인 필요
     ack = bytearray(cmd[0:4])
