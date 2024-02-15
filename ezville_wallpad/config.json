@@ -1,5 +1,5 @@
 {
-	"version": "0.0.20240215",
+	"version": "0.0.20240216",
 	"slug": "ezville_wallpad",
 	"name": "EzVille RS485 Addon",
 	"description": "이지빌용 수정된 애드온입니다.",
@@ -27,6 +27,10 @@
 			"address": "192.168.1.1",
 			"port": 8899
 		},
+		"sockets": [{
+			"address": "192.168.1.1",
+			"port": 8899
+		}],
 		"mqtt": {
 			"server": "127.0.0.1",
 			"port": 1883,
@@ -48,7 +52,7 @@
 		}
 	},
 	"schema": {
-		"serial_mode": "list(serial|socket)",
+		"serial_mode": "list(serial|socket|sockets)",
 		"entrance_mode": "list(full|new|minimal|off)",
 		"wallpad_mode": "list(on|off)",
 		"intercom_mode": "list(on|off)",
@@ -63,6 +67,10 @@
 			"address": "str?",
 			"port": "int?"
 		},
+		"sockets":[{
+			"address": "str?",
+			"port": "int?"
+		}],
 		"mqtt": {
 			"server": "str",
 			"port": "int(0,65535)",
