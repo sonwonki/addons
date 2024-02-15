@@ -19,10 +19,6 @@ import re
 
 RS485_DEVICE = {
     "light": {
-        "query": {
-            "id": 0x0E,
-            "cmd": 0x01,
-        },
         "state": {
             "id": 0x0E,
             "cmd": 0x81,
@@ -421,7 +417,6 @@ def mqtt_debug(topics, payload):
 
 # KTDO: 수정 완료
 def mqtt_device(topics, payload):
-    print(topics, payload)
     device = topics[1]
     idn = topics[2]
     cmd = topics[3]
@@ -621,6 +616,10 @@ def serial_new_device(device, packet, idn=None):
         grp_id = int(packet[2] >> 4)
         rm_id = int(packet[2] & 0x0F)
         light_count = int(packet[4]) - 1
+        for p in packet:
+            print(format(p, "02x"), end=" ")
+        print(packet[3], packet[4], packet[5])
+        print(grp_id, rm_id, light_count)
         for light_id in range(1, light_count + 1):
             payload = DISCOVERY_PAYLOAD[device][0].copy()
             payload["~"] = payload["~"].format(
