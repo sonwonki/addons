@@ -29,7 +29,12 @@
 		},
 		"sockets": [{
 			"address": "192.168.1.1",
-			"port": 8899
+			"port": 8899,
+			"capabilities": "light,plug"
+		},{
+			"address": "192.168.1.2",
+			"port": 8899,
+			"capabilities": "fan,thermostat"
 		}],
 		"mqtt": {
 			"server": "127.0.0.1",
@@ -69,7 +74,8 @@
 		},
 		"sockets":[{
 			"address": "str?",
-			"port": "int?"
+			"port": "int?",
+			"capabilities": "str?"
 		}],
 		"mqtt": {
 			"server": "str",

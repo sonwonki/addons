@@ -14,6 +14,7 @@ import sys
 import time
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from collections import defaultdict
 import os.path
 import re
 
@@ -31,10 +32,6 @@ RS485_DEVICE = {
         },
     },
     "thermostat": {
-        "query": {
-            "id": 0x36,
-            "cmd": 0x01,
-        },
         "state": {
             "id": 0x36,
             "cmd": 0x81,
@@ -42,8 +39,8 @@ RS485_DEVICE = {
         "last": {},
         "away": {
             "id": 0x36,
-            "cmd": 0x45,
-            "ack": 0x00,
+            "cmd": 0x46,
+            "ack": 0xC6,
         },
         "target": {
             "id": 0x36,
@@ -93,6 +90,7 @@ DISCOVERY_PAYLOAD = {
             "~": "{prefix}/thermostat/{grp}_{id}",
             "name": "{prefix}_thermostat_{grp}_{id}",
             "mode_stat_t": "~/power/state",
+            "mode_cmd_t": "~/power/command",
             "temp_stat_t": "~/target/state",
             "temp_cmd_t": "~/target/command",
             "curr_temp_t": "~/current/state",
@@ -146,11 +144,6 @@ STATE_HEADER = {
     for device, prop in RS485_DEVICE.items()
     if "state" in prop
 }
-QUERY_HEADER = {
-    prop["query"]["id"]: (device, prop["query"]["cmd"])
-    for device, prop in RS485_DEVICE.items()
-    if "query" in prop
-}
 # 제어 명령의 ACK header만 모음
 ACK_HEADER = {
     prop[cmd]["id"]: (device, prop[cmd]["ack"])
@@ -158,14 +151,12 @@ ACK_HEADER = {
     for cmd, code in prop.items()
     if "ack" in code
 }
-
 # KTDO: 제어 명령과 ACK의 Pair 저장
-ACK_MAP = {}
+
+ACK_MAP = defaultdict(lambda: defaultdict(dict))
 for device, prop in RS485_DEVICE.items():
     for cmd, code in prop.items():
         if "ack" in code:
-            ACK_MAP[code["id"]] = {}
-            ACK_MAP[code["id"]][code["cmd"]] = {}
             ACK_MAP[code["id"]][code["cmd"]] = code["ack"]
 
 # KTDO: 아래 미사용으로 코멘트 처리
@@ -242,7 +233,8 @@ class EzVilleSerial:
 
 # KTDO: 수정 완료
 class EzVilleSocket:
-    def __init__(self, addr, port):
+    def __init__(self, addr, port, capabilities="ALL"):
+        self.capabilities = capabilities
         self._soc = socket.socket()
         self._soc.connect((addr, port))
 
@@ -420,7 +412,6 @@ def mqtt_device(topics, payload):
     device = topics[1]
     idn = topics[2]
     cmd = topics[3]
-
     # HA에서 잘못 보내는 경우 체크
     if device not in RS485_DEVICE:
         logger.error("    unknown device!")
@@ -536,7 +527,7 @@ def mqtt_on_connect(mqtt, userdata, flags, rc, properties):
 
 
 # KTDO: 수정 완료
-def mqtt_on_disconnect(mqtt, userdata, rc):
+def mqtt_on_disconnect(client, userdata, flags, rc, properties):
     logger.warning("MQTT disconnected! (%s)", rc)
     global mqtt_connected
     mqtt_connected = False
@@ -629,11 +620,13 @@ def serial_new_device(device, packet, idn=None):
 
     elif device == "thermostat":
         # KTDO: EzVille에 맞게 수정
-        room_count = 4  # 고정 집마다 다름
+        grp_id = int(packet[2] >> 4)
+        room_count = int((int(packet[4]) - 5) / 2)
+        
         for room_id in range(1, room_count + 1):
             payload = DISCOVERY_PAYLOAD[device][0].copy()
-            payload["~"] = payload["~"].format(prefix=prefix, grp=room_id, id=1)
-            payload["name"] = payload["name"].format(prefix=prefix, grp=room_id, id=1)
+            payload["~"] = payload["~"].format(prefix=prefix, grp=grp_id, id=room_id)
+            payload["name"] = payload["name"].format(prefix=prefix, grp=grp_id, id=room_id)
 
             mqtt_discovery(payload)
 
@@ -715,7 +708,8 @@ def serial_receive_state(device, packet):
 
     elif device == "thermostat":
         grp_id = int(packet[2] >> 4)
-        room_count = 1  # 고정
+        room_count = int((int(packet[4]) - 5) / 2)
+
         for thermostat_id in range(1, room_count + 1):
             if ((packet[6] & 0x1F) >> (room_count - thermostat_id)) & 1:
                 value1 = "ON"
@@ -725,9 +719,8 @@ def serial_receive_state(device, packet):
                 value2 = "ON"
             else:
                 value2 = "OFF"
-
             for sub_topic, value in zip(
-                ["power", "away", "target", "current"],
+                ["mode", "away", "target", "current"],
                 [
                     value1,
                     value2,
@@ -806,8 +799,9 @@ def serial_ack_command(packet):
 def serial_send_command(conn):
     # 한번에 여러개 보내면 응답이랑 꼬여서 망함
     cmd = next(iter(serial_queue))
+    if conn.capabilities != "ALL" and ACK_HEADER[cmd[1]][0] not in conn.capabilities:
+        return
     conn.send(cmd)
-    # ack = bytearray(cmd[0:3])
     # KTDO: Ezville은 4 Byte까지 확인 필요
     ack = bytearray(cmd[0:4])
     ack[3] = ACK_MAP[cmd[1]][cmd[3]]
@@ -852,14 +846,8 @@ def daemon(conn):
         # KTDO: 패킷단위로 분석할 것이라 합치지 않음.
         # header = (header_0 << 8) | header_1
         # device로부터의 state 응답이면 확인해서 필요시 HA로 전송해야 함
-        if (header_1 in STATE_HEADER and header_3 in STATE_HEADER[header_1]) or (
-            header_1 in QUERY_HEADER and header_3 in QUERY_HEADER[header_1]
-        ):
-            device = (
-                STATE_HEADER[header_1][0]
-                if header_1 in STATE_HEADER
-                else QUERY_HEADER[header_1][0]
-            )
+        if header_1 in STATE_HEADER and header_3 in STATE_HEADER[header_1]:
+            device = STATE_HEADER[header_1][0]
             header_4 = conn.recv(1)[0]
             data_length = int(header_4)
 
@@ -946,13 +934,13 @@ if __name__ == "__main__":
 
     if Options["serial_mode"] == "sockets":
         for _socket in Options["sockets"]:
-            conn = EzVilleSocket(_socket["address"], _socket["port"])
+            conn = EzVilleSocket(_socket["address"], _socket["port"], _socket["capabilities"])
             init_connect(conn=conn)
             thread = threading.Thread(target=daemon, args=(conn,))
             thread.daemon = True
             thread.start()
         while True:
-            time.sleep(0.5)
+            time.sleep(10**8)
     elif Options["serial_mode"] == "socket":
         logger.info("initialize socket...")
         conn = EzVilleSocket(Options["socket"]["address"], Options["socket"]["port"])
