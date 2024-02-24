@@ -513,7 +513,6 @@ def ezville_loop(config):
                             # plug는 ACK PACKET에 상태 정보가 없으므로 STATE_PACKET만 처리
                             elif name == "plug" and STATE_PACKET:
                                 if STATE_PACKET:
-                                    log(packet)
                                     # ROOM ID
                                     rid = int(packet[4], 16)
                                     # ROOM의 plug 갯수
@@ -868,7 +867,6 @@ def ezville_loop(config):
                         )
 
                 elif device == "plug":
-                    print(idx, sid)
                     pwr = "01" if value == "ON" else "00"
 
                     sendcmd = checksum(
