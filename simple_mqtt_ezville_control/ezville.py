@@ -42,7 +42,7 @@ DISCOVERY_DEVICE = {
     "name": "ezville_wallpad",
     "mf": "EzVille",
     "mdl": "EzVille Wallpad",
-    "sw": "ktdo79/addons/ezville_wallpad",
+    "sw": "dongs0104/addons/ezville_wallpad",
 }
 
 # MQTT Discovery를 위한 Payload 정보
@@ -412,7 +412,7 @@ def ezville_loop(config):
                         if MSG_CACHE.get(packet[0:10]) != packet[10:] or FORCE_UPDATE:
                             name = STATE_HEADER[packet[2:4]][0]
                             if name == "light":
-                                # ROOM ID
+                                # ROOM ID # 표준과 다름
                                 rid = int(packet[5], 16)
                                 # ROOM의 light 갯수 + 1
                                 slc = int(packet[8:10], 16)
@@ -438,8 +438,7 @@ def ezville_loop(config):
                                     # State 업데이트까지 진행
                                     onoff = (
                                         "ON"
-                                        if int(packet[10 + 2 * id : 12 + 2 * id], 16)
-                                        > 0
+                                        if int(packet[10 + 2 * id : 12 + 2 * id], 16) & 1
                                         else "OFF"
                                     )
 
@@ -542,11 +541,11 @@ def ezville_loop(config):
 
                                         # BIT0: 대기전력 On/Off, BIT1: 자동모드 On/Off
                                         # 위와 같지만 일단 on-off 여부만 판단
-                                        DATA = int(packet[6 + 6 * id : 12 + 6 * id], 16)
-                                        onoff = "ON" if DATA & 0x100000 else "OFF"
-                                        autoonoff = "ON" if DATA & 0x800000 else "OFF"
-                                        current = bin(DATA)[6:]
-                                        power_num = "{:.2f}".format(
+                                        DATA = "{0:024b}".format(int(packet[6 + 6 * id : 12 + 6 * id], 16))
+                                        onoff = "ON" if DATA[3] == "1" else "OFF"
+                                        autoonoff = "ON" if DATA[0] == "1" else "OFF"
+                                        current = DATA[4:]
+                                        power_num = "{:.1f}".format(
                                             sum(
                                                 int(x, 2) * pow(10, 3 - i)
                                                 for i, x in enumerate(
@@ -834,7 +833,8 @@ def ezville_loop(config):
 
                 elif device == "light":
                     pwr = "01" if value == "ON" else "00"
-
+                    if idx == 1 and sid in [1, 2] and pwr == "01":
+                        pwr = "F1"
                     sendcmd = checksum(
                         "F7"
                         + RS485_DEVICE[device]["power"]["id"]
