@@ -867,7 +867,7 @@ def ezville_loop(config):
                         )
 
                 elif device == "plug":
-                    pwr = "01" if value == "ON" else "00"
+                    pwr = "11" if value == "ON" else "10"
 
                     sendcmd = checksum(
                         "F7"
