@@ -1284,7 +1284,6 @@ def ezville_loop(config):
 
 
 if __name__ == "__main__":
-    config_dir = "."
     with open(config_dir + "/options.json") as file:
         CONFIG = json.load(file)
 
