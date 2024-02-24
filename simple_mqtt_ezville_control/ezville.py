@@ -22,7 +22,7 @@ RS485_DEVICE = {
     },
     "plug": {
         "state": {"id": "39", "cmd": "81"},
-        "power": {"id": "39", "cmd": "43", "ack": "C3"},
+        "power": {"id": "39", "cmd": "41", "ack": "C1"},
     },
     "gasvalve": {
         "state": {"id": "12", "cmd": "81"},
@@ -868,23 +868,20 @@ def ezville_loop(config):
 
                 elif device == "plug":
                     pwr = "11" if value == "ON" else "10"
-
+                    
                     sendcmd = checksum(
                         "F7"
                         + RS485_DEVICE[device]["power"]["id"]
-                        + "1"
-                        + str(idx)
+                        + f"{idx}{sid}"
                         + RS485_DEVICE[device]["power"]["cmd"]
-                        + "020"
-                        + str(sid)
+                        + "01"
                         + pwr
                         + "0000"
                     )
                     recvcmd = (
                         "F7"
                         + RS485_DEVICE[device]["power"]["id"]
-                        + "1"
-                        + str(idx)
+                        + f"{idx}{sid}"
                         + RS485_DEVICE[device]["power"]["ack"]
                     )
                     statcmd = [key, value]
