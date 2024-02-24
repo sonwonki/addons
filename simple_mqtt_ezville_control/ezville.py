@@ -491,6 +491,9 @@ def ezville_loop(config):
                                         and away_state[8 - rid] == "1"
                                     ):
                                         onoff = "off"
+                                    else:
+                                        onoff = "off"
+
                                     #                                    elif onoff_state[8 - rid] == '0' and away_state[8 - rid] == '0':
                                     #                                        onoff = 'off'
                                     #                                    else:
@@ -510,11 +513,11 @@ def ezville_loop(config):
                             # plug는 ACK PACKET에 상태 정보가 없으므로 STATE_PACKET만 처리
                             elif name == "plug" and STATE_PACKET:
                                 if STATE_PACKET:
+                                    log(packet)
                                     # ROOM ID
-                                    rid = int(packet[5], 16)
+                                    rid = int(packet[4], 16)
                                     # ROOM의 plug 갯수
-                                    spc = int(packet[10:12], 16)
-
+                                    spc = int((int(packet[8:10], 16) - 1) / 3)
                                     for id in range(1, spc + 1):
                                         discovery_name = "{}_{:0>2d}_{:0>2d}".format(
                                             name, rid, id
@@ -540,40 +543,36 @@ def ezville_loop(config):
 
                                         # BIT0: 대기전력 On/Off, BIT1: 자동모드 On/Off
                                         # 위와 같지만 일단 on-off 여부만 판단
-                                        onoff = (
-                                            "ON"
-                                            if int(packet[7 + 6 * id], 16) > 0
-                                            else "OFF"
-                                        )
-                                        autoonoff = (
-                                            "ON"
-                                            if int(packet[6 + 6 * id], 16) > 0
-                                            else "OFF"
-                                        )
+                                        DATA = int(packet[6 + 6 * id : 12 + 6 * id], 16)
+                                        onoff = "ON" if DATA & 0x100000 else "OFF"
+                                        autoonoff = "ON" if DATA & 0x800000 else "OFF"
+                                        current = bin(DATA)[6:]
                                         power_num = "{:.2f}".format(
-                                            int(packet[8 + 6 * id : 12 + 6 * id], 16)
-                                            / 100
+                                            sum(
+                                                int(x, 2) * pow(10, 3 - i)
+                                                for i, x in enumerate(
+                                                    [
+                                                        current[i : i + 4]
+                                                        for i in range(
+                                                            0, len(current), 4
+                                                        )
+                                                    ]
+                                                )
+                                            )
                                         )
 
                                         await update_state(
                                             name, "power", rid, id, onoff
                                         )
-                                        await update_state(name, "auto", rid, id, onoff)
+                                        await update_state(
+                                            name, "auto", rid, id, autoonoff
+                                        )
                                         await update_state(
                                             name, "current", rid, id, power_num
                                         )
 
                                         # 직전 처리 State 패킷은 저장
                                         MSG_CACHE[packet[0:10]] = packet[10:]
-                                else:
-                                    # ROOM ID
-                                    rid = int(packet[5], 16)
-                                    # ROOM의 plug 갯수
-                                    sid = int(packet[10:12], 16)
-
-                                    onoff = "ON" if int(packet[13], 16) > 0 else "OFF"
-
-                                    await update_state(name, "power", rid, id, onoff)
 
                             elif name == "gasvalve":
                                 # Gas Value는 하나라서 강제 설정
@@ -869,6 +868,7 @@ def ezville_loop(config):
                         )
 
                 elif device == "plug":
+                    print(idx, sid)
                     pwr = "01" if value == "ON" else "00"
 
                     sendcmd = checksum(
@@ -1286,6 +1286,7 @@ def ezville_loop(config):
 
 
 if __name__ == "__main__":
+    config_dir = "."
     with open(config_dir + "/options.json") as file:
         CONFIG = json.load(file)
 
