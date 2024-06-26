@@ -1,6 +1,6 @@
 {
   "name": "MQTT 기반 Simple EzVille Wallpad Control",
-  "version": "0.0.1.bafa676",
+  "version": "0.0.1.ddfec63",
   "slug": "simple_mqtt_ezville_control",
   "url": "https://github.com/dongs0104/addons",
   "description": "MQTT 통신을 활용한 간단화된 EzVille 월패드 컨트롤러",
