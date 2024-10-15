@@ -328,7 +328,7 @@ def ezville_loop(config):
             MSG_QUEUE.put(msg)
 
     # MQTT 통신 연결 해제 Callback
-    def on_disconnect(client, userdata, rc):
+    def on_disconnect(client, userdata, reason_code, properties):
         log("INFO: MQTT 연결 해제")
         pass
 
