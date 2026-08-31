@@ -95,7 +95,8 @@ DISCOVERY_PAYLOAD = {
             "name": "ezville_plug_{:0>2d}_{:0>2d}_powermeter",
             "stat_t": "~/current/state",
             "unit_of_meas": "W",
-            "device_class": "energy"
+            "device_class": "power",
+            "state_class": "measurement"
         },
     ],
     "gasvalve": [
