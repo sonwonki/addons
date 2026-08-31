@@ -830,8 +830,13 @@ def ezville_loop(config):
 
                 elif device == "light":
                     pwr = "01" if value == "ON" else "00"
-                    if idx == 1 and sid in [1, 2] and pwr == "01":
+                    # KTDO: 거실(idx==1) 조명 1,2번은 ON일 때 01 대신 F1 필요
+                    if pwr == "01" and idx == 1 and sid in [1, 2]:
                         pwr = "F1"
+                    # 안방(idx==2) 조명 1번: 실제 자이 S&D 앱이 보낸 패킷 캡처로 확인된 값
+                    # (F70E124103011101B826) - 01도 F1도 아닌 11이 정답
+                    elif pwr == "01" and idx == 2 and sid == 1:
+                        pwr = "11"
                     sendcmd = checksum(
                         "F7"
                         + RS485_DEVICE[device]["power"]["id"]
