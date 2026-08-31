@@ -671,7 +671,8 @@ def ezville_loop(config):
             intg, payload["name"]
         )
         log("[INFO] 장치 등록:  {}".format(topic))
-        mqtt_client.publish(topic, json.dumps(payload))
+        # retain=True로 발행: 브로커/HA 재시작 후에도 discovery config가 유지되도록
+        mqtt_client.publish(topic, json.dumps(payload), qos=1, retain=True)
 
     # 장치 State를 MQTT로 Publish
     async def update_state(device, state, id1, id2, value):
@@ -684,7 +685,7 @@ def ezville_loop(config):
             DEVICE_STATE[key] = value
 
             topic = STATE_TOPIC.format(deviceID, state)
-            mqtt_client.publish(topic, value.encode())
+            mqtt_client.publish(topic, value.encode(), qos=1, retain=True)
 
             if mqtt_log:
                 log("[LOG] ->> HA : {} >> {}".format(topic, value))
