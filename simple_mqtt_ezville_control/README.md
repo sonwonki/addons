@@ -1,4 +1,4 @@
-# MQTT 기반 Simple EzVille Wallpad Control    fork sson
+# MQTT 기반 Simple EzVille Wallpad Control --sson fork 60
 
 ## 1. 지원 기능
 
