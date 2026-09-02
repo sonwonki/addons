@@ -160,7 +160,9 @@ ACK_HEADER = {
 # LOG 메시지
 def log(string):
     date = time.strftime("%Y-%m-%d %p %I:%M:%S", time.localtime(time.time()))
-    print("[{}] {}".format(date, string))
+    # flush=True: 컨테이너 stdout 버퍼링으로 로그 기록 시점이 실제 이벤트보다
+    # 늦게 찍히는 걸 방지 (기능 동작에는 영향 없음, 로그 타이밍 정확도용)
+    print("[{}] {}".format(date, string), flush=True)
     return
 
 
@@ -393,6 +395,34 @@ def ezville_loop(config):
                     k += 1
                     continue
                 else:
+                    # 엘리베이터 호출 결과 전달 프레임 감지 (일괄차단기 ID 33, CMD 0x43)
+                    # 기존 STATE/ACK 분류와는 무관하게, 반복 전송한 호출이 실제로
+                    # 처리됐는지 확인하기 위한 용도로만 시각(time)을 기록함.
+                    # 다른 장치 처리 로직에는 영향을 주지 않는 순수 추가 로직.
+                    if packet[2:4] == "33" and packet[6:8] == "43":
+                        data_byte = packet[10:12]
+                        DEVICE_STATE["batch_01_01elevator-confirm-time"] = time.time()
+                        DEVICE_STATE["batch_01_01elevator-confirm-data"] = data_byte
+
+                        # HA 자동화(조명 알림 등)가 바로 반응할 수 있도록 DATA 값을
+                        # 그대로 이벤트성 MQTT 토픽으로 발행함. 상태가 아니라 순간
+                        # 이벤트라 retain은 안 함.
+                        # DATA=10 -> 호출 접수/결과 전달 (로그로 검증 완료)
+                        # DATA=80으로 추정되는 도착 이벤트는 아직 실제 로그로
+                        # 검증 전이라, 우선 값을 그대로 흘려보내 관찰용으로 씀.
+                        mqtt_client.publish(
+                            "ezville_wallpad/batch_01_01/elevator_result",
+                            data_byte,
+                            qos=1,
+                        )
+
+                        if ew11_log:
+                            log(
+                                "[SIGNAL] 엘리베이터 결과 전달 프레임 감지: data={} ({})".format(
+                                    data_byte, packet
+                                )
+                            )
+
                     STATE_PACKET = False
                     ACK_PACKET = False
 
@@ -986,30 +1016,71 @@ def ezville_loop(config):
                     recvcmd = "NULL"
                     statcmd = [key, "NULL"]
 
-                    # 엘리베이터 호출은 버스 폴링 타이밍과 겹치면 무시되는 경우가 있어
-                    # 동일 프레임(내용은 변경 없음)을 20회 반복 전송해 인지 확률을 높임.
-                    # 반복 간격은 고정 100ms가 아니라 80~150ms 랜덤 지터를 줘서,
-                    # 혹시 버스 폴링 주기와 간격이 맞물려 매번 같은 슬롯에서만
-                    # 충돌하는 경우를 피하도록 함. 그 외 batch 동작은 기존과
-                    # 동일하게 1회만 전송.
-                    repeat_count = (
-                        20 if topics[2] in ("elevator-up", "elevator-down") else 1
-                    )
+                    if topics[2] in ("elevator-up", "elevator-down"):
+                        # 엘리베이터 호출은 버스 폴링 타이밍과 겹치면 무시되는 경우가
+                        # 있어, 동일 프레임(내용은 변경 없음)을 80~150ms 랜덤 지터
+                        # 간격으로 20회씩 묶어 전송함. 매 20회 묶음이 끝날 때마다
+                        # 실제 결과 전달 프레임(F7 33 01 43 ...)이 왔는지 확인해서,
+                        # 왔으면 즉시 중단하고, 안 왔으면 다음 20회 묶음을 재시도.
+                        # 최대 5묶음(총 100회)까지 시도하고 그래도 안 오면 포기함.
+                        confirm_key = "batch_01_01elevator-confirm-time"
+                        BATCH_SIZE = 20
+                        MAX_BATCHES = 5
 
-                    for repeat_idx in range(repeat_count):
+                        for batch_idx in range(MAX_BATCHES):
+                            batch_start_time = time.time()
+
+                            for repeat_idx in range(BATCH_SIZE):
+                                await CMD_QUEUE.put(
+                                    {
+                                        "sendcmd": sendcmd,
+                                        "recvcmd": recvcmd,
+                                        "statcmd": statcmd,
+                                    }
+                                )
+
+                                if debug:
+                                    log(
+                                        "[DEBUG] Queued (묶음 {}/{}, {}/{}) ::: sendcmd: {}".format(
+                                            batch_idx + 1,
+                                            MAX_BATCHES,
+                                            repeat_idx + 1,
+                                            BATCH_SIZE,
+                                            sendcmd,
+                                        )
+                                    )
+
+                                if repeat_idx < BATCH_SIZE - 1:
+                                    await asyncio.sleep(random.uniform(0.08, 0.15))
+
+                            # 이번 묶음 전송 중/후에 결과 전달 프레임이 새로 왔는지 확인
+                            confirm_time = DEVICE_STATE.get(confirm_key)
+                            if confirm_time is not None and confirm_time > batch_start_time:
+                                if ew11_log:
+                                    log(
+                                        "[SIGNAL] 엘리베이터 호출 확인됨 ({}번째 묶음, 총 {}회 전송)".format(
+                                            batch_idx + 1, (batch_idx + 1) * BATCH_SIZE
+                                        )
+                                    )
+                                break
+                        else:
+                            if ew11_log:
+                                log(
+                                    "[SIGNAL] 엘리베이터 호출 {}회 시도했으나 결과 전달 프레임을 받지 못함".format(
+                                        MAX_BATCHES * BATCH_SIZE
+                                    )
+                                )
+                    else:
                         await CMD_QUEUE.put(
                             {"sendcmd": sendcmd, "recvcmd": recvcmd, "statcmd": statcmd}
                         )
 
                         if debug:
                             log(
-                                "[DEBUG] Queued ({}/{}) ::: sendcmd: {}, recvcmd: {}, statcmd: {}".format(
-                                    repeat_idx + 1, repeat_count, sendcmd, recvcmd, statcmd
+                                "[DEBUG] Queued ::: sendcmd: {}, recvcmd: {}, statcmd: {}".format(
+                                    sendcmd, recvcmd, statcmd
                                 )
                             )
-
-                        if repeat_idx < repeat_count - 1:
-                            await asyncio.sleep(random.uniform(0.08, 0.15))
 
     # HA에서 전달된 명령을 EW11 패킷으로 전송
     async def send_to_ew11(send_data):
