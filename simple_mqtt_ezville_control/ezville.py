@@ -1298,7 +1298,7 @@ def ezville_loop(config):
             await asyncio.sleep(RESTART_CHECK_DELAY)
 
     # MQTT 통신
-    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "mqtt-ezville")
+    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "mqtt-ezville-60")
     mqtt_client.username_pw_set(config["mqtt_id"], config["mqtt_password"])
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
