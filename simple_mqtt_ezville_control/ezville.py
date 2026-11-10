@@ -1188,14 +1188,21 @@ def ezville_loop(config):
 
         retry_count = 0
         while True:
+            new_soc = socket.socket()
             try:
-                soc = socket.socket()
-                soc.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                connect_socket(soc)
-                return soc
-            except ConnectionRefusedError as e:
+                new_soc.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # 무선 EW11 등에서 연결이 조용히 끊기면 recv가 영원히 대기하므로 제한 시간 설정
+                new_soc.settimeout(10)
+                connect_socket(new_soc)
+                return new_soc
+            except OSError as e:
+                new_soc.close()
                 log(
-                    "[ERROR] Server에서 연결을 거부합니다. 재시도 예정 (" + str(retry_count) + "회 재시도)"
+                    "[ERROR] Server 연결 실패 ("
+                    + str(e)
+                    + "). 재시도 예정 ("
+                    + str(retry_count)
+                    + "회 재시도)"
                 )
                 time.sleep(1)
                 retry_count += 1
@@ -1226,7 +1233,8 @@ def ezville_loop(config):
 
                 MSG_QUEUE.put(msg)
 
-            except OSError:
+            except OSError as e:
+                log("[WARNING] Socket 수신 오류/끊김 (" + str(e) + "), 재연결합니다")
                 soc.close()
                 soc = initiate_socket()
 
