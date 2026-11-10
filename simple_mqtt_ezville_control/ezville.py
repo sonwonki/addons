@@ -1098,7 +1098,7 @@ def ezville_loop(config):
                     soc.sendall(bytes.fromhex(send_data["sendcmd"]))
                 except OSError:
                     soc.close()
-                    soc = initiate_socket(soc)
+                    soc = initiate_socket()
                     soc.sendall(bytes.fromhex(send_data["sendcmd"]))
             if debug:
                 log(
@@ -1139,6 +1139,8 @@ def ezville_loop(config):
 
     # EW11 동작 상태를 체크해서 필요시 리셋 실시
     async def ew11_health_loop():
+        # restart_flag를 지역 변수가 아닌 바깥 변수로 갱신해야 restart_control이 인지함
+        nonlocal restart_flag
         while True:
             timestamp = time.time()
 
@@ -1216,6 +1218,9 @@ def ezville_loop(config):
             try:
                 # EW11 버퍼 크기만큼 데이터 받기
                 DATA = soc.recv(EW11_BUFFER_SIZE)
+                # 상대가 연결을 닫으면 recv가 예외 없이 빈 값을 반환 -> 재연결 처리
+                if not DATA:
+                    raise OSError("socket closed by peer")
                 msg.topic = EW11_TOPIC + "/recv"
                 msg.payload = DATA
 
@@ -1223,7 +1228,7 @@ def ezville_loop(config):
 
             except OSError:
                 soc.close()
-                soc = initiate_socket(soc)
+                soc = initiate_socket()
 
             await asyncio.sleep(SERIAL_RECV_DELAY)
 
